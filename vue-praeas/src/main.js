@@ -1,6 +1,7 @@
-// import "./assets/main.css";
-
 import { createApp } from "vue";
 import App from "./App.vue";
+import VueCookies from "vue3-cookies";
 
-createApp(App).mount("#app");
+const app = createApp(App);
+app.use(VueCookies, { expire: "1d" });
+app.mount("#app");

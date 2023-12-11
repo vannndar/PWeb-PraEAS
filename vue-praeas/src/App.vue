@@ -1,173 +1,188 @@
 <template>
   <div id="app">
+    <h1>Sign in</h1>
     <input v-model="var1" placeholder="email" />
+    <br />
     <input v-model="var2" placeholder="password" />
     <br />
-    <input v-model="var3" placeholder="account id" />
-    <input v-model="var4" placeholder="email update" />
+    <button @click="login()">Login</button>
+    <button @click="logout()">Logout</button>
+
+    <h1>Channel</h1>
     <br />
-    <button @click="login">login</button>
-    <button @click="logout">logout</button>
-    <button @click="create">create</button>
-    <button @click="read">read</button>
-    <button @click="update">update</button>
-    <button @click="deleteAccount">deleteAccount</button>
+    <input v-model="var6" placeholder="Channel" />
     <br />
-    <div>
-      <h2>Result or Data:</h2>
-      <p>{{ hasil }}</p>
-    </div>
+    <button @click="createChannel()">Create Channel</button>
+    <button @click="setChannel()">Join Channel Id</button>
+    <h1>Channel list</h1>
+    <ul id="channellist"></ul>
+    <h1>Chat</h1>
+    <ul id="messagelist"></ul>
+    <input v-model="var7" placeholder="text" />
+    <button @click="sendMessage()">Send</button>
   </div>
 </template>
 
-<script type="module">
-import qs from "https://cdn.skypack.dev/qs";
-export default {
-  name: "App",
-  data() {
-    return {
-      var1: "",
-      var2: "",
-      var3: "",
-      var4: "",
-      hasil: "",
-    };
-  },
+<script setup>
+import { ref } from "vue";
+import VueCookies from "vue3-cookies";
+
+let var1 = ref("");
+let var2 = ref("");
+let var6 = ref("");
+let var7 = ref("");
+let hasil = ref("");
+let channel = "";
+let userid = "";
+
+const login = async () => {
+  try {
+    console.log(var1.value, var2.value);
+    const req = await fetch("http://localhost:3000/api/users/login", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: var1.value,
+        password: var2.value,
+      }),
+    });
+    const data = await req.json();
+    console.log(data);
+    userid = data.user.id;
+    readChannel();
+    if (data.token) {
+      VueCookies.set("login", data.token, "1d");
+    }
+    hasil.value = data;
+  } catch (err) {
+    console.log(err);
+  }
 };
-const app = Vue.createApp({
-  data() {
-    return {
-      var1: "",
-      var2: "",
-      var3: "",
-      var4: "",
-      hasil: "",
-    };
-  },
-  methods: {
-    async login() {
-      try {
-        console.log(this.var1, this.var2);
-        const req = await fetch("http://localhost:3000/api/users/login", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: this.var1,
-            password: this.var2,
-          }),
-        });
-        const data = await req.json();
-        console.log(data);
-        if (data.token) {
-          this.$cookies.set("login", data.token, "1d"); // Set cookie here
+
+const logout = async () => {
+  try {
+    const req = await fetch("http://localhost:3000/api/users/logout", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await req.json();
+    console.log(data);
+    hasil.value = data;
+    userid = "";
+    document.getElementById("messagelist").innerHTML = "";
+    document.getElementById("channellist").innerHTML = "";
+  } catch (err) {
+    console.log(err);
+    userid = "";
+    document.getElementById("messagelist").innerHTML = "";
+    document.getElementById("channellist").innerHTML = "";
+  }
+};
+
+const readChannel = async () => {
+  try {
+    const req = await fetch("http://localhost:3000/api/channel");
+    const data = await req.json();
+    hasil.value = data;
+    const channellist = document.getElementById("channellist");
+    channellist.innerHTML = "";
+
+    if (data.docs && Array.isArray(data.docs)) {
+      const reversedDocs = data.docs.slice().reverse();
+
+      reversedDocs.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item.name + " " + item.id;
+        channellist.appendChild(li);
+      });
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const createChannel = async () => {
+  try {
+    const req = await fetch("http://localhost:3000/api/channel", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: var6.value,
+      }),
+    });
+    const data = await req.json();
+    console.log(data);
+    hasil.value = data;
+    readChannel();
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const setChannel = () => {
+  channel = var6.value;
+  console.log(channel);
+  showMessage();
+};
+
+const showMessage = async () => {
+  try {
+    const req = await fetch("http://localhost:3000/api/message");
+    const data = await req.json();
+    console.log(data);
+    hasil.value = data;
+    const messageList = document.getElementById("messagelist");
+    messageList.innerHTML = "";
+
+    if (data.docs && Array.isArray(data.docs)) {
+      const reversedDocs = data.docs.slice().reverse();
+
+      reversedDocs.forEach((item) => {
+        console.log(item);
+        if (item.channel.id == channel) {
+          const li = document.createElement("li");
+          li.textContent = item.sender.name + " : " + item.text;
+          messageList.appendChild(li);
         }
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-    async logout() {
-      try {
-        const req = await fetch("http://localhost:3000/api/users/logout", {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-        const data = await req.json();
-        console.log(data);
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-    async read() {
-      try {
-        const req = await fetch("http://localhost:3000/api/" + this.selected);
-        const data = await req.json();
-        console.log(data);
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-    async create() {
-      try {
-        const req = await fetch("http://localhost:3000/api/" + this.selected, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: this.var1,
-            password: this.var2,
-          }),
-        });
-        const data = await req.json();
-        console.log(data);
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-    async update() {
-      const stringifiedQuery = qs.stringify(
-        {
-          where: {
-            title: {
-              id: this.var3,
-            },
-          },
-        },
-        { addQueryPrefix: true }
-      );
-      try {
-        const req = await fetch(
-          "http://localhost:3000/api/" + this.selected + "/" + stringifiedQuery,
-          {
-            method: "PATCH",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              email: this.var4,
-            }),
-          }
-        );
-        const data = await req.json();
-        console.log(data);
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-    async deleteAccount() {
-      try {
-        const req = await fetch(
-          "http://localhost:3000/api/" + this.selected + "/" + this.var3,
-          {
-            method: "DELETE",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        const data = await req.json();
-        console.log(data);
-        this.hasil = data;
-      } catch (err) {
-        console.log(err);
-      }
-    },
-  },
-});
+      });
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const sendMessage = async () => {
+  try {
+    const req = await fetch("http://localhost:3000/api/message", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: var7.value,
+        sender: userid,
+        channel: channel,
+      }),
+    });
+    const data = await req.json();
+    console.log(userid, channel);
+    console.log(data);
+    hasil.value = data;
+    showMessage();
+  } catch (err) {
+    console.log(err);
+  }
+};
 </script>
 
 <style scoped>
